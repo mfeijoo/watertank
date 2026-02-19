@@ -90,8 +90,9 @@ static const int HOLD_PIN = 41;
 static volatile uint32_t integraltimemicros = 700; // default 700 us, can set to 200 us
 static const uint32_t resettimemicros = 10;
 
-// SPI settings from your old code
-static SPISettings detSPI(66670000, MSBFIRST, SPI_MODE0);
+// ADS8688A in model11 uses SPI mode 1 @ 17 MHz.
+// Keep same proven settings while bringing detector code here.
+static SPISettings detSPI(17000000, MSBFIRST, SPI_MODE1);
 
 // Raw detector readings (2 channels like your old code)
 static volatile uint16_t det_ch0 = 0;
@@ -320,15 +321,23 @@ static void sendCoordsBinary() {
 static void detReadChannels() {
   SPI.beginTransaction(detSPI);
 
-  digitalWrite(CS_ADQ0, LOW);
-  uint16_t v0 = SPI.transfer16(0b1101000000010000);
+  // ADS8688A manual channel-select command pattern copied from model11:
+  // write command for channel N, then next transfer returns previous result.
+  // First read after startup may be stale; measurement loop continuously updates.
+  digitalWrite(CS_ADQ, LOW);
+  SPI.transfer16(0xC000);      // select CH0
   SPI.transfer16(0);
-  digitalWrite(CS_ADQ0, HIGH);
+  digitalWrite(CS_ADQ, HIGH);
 
-  digitalWrite(CS_ADQ1, LOW);
-  uint16_t v1 = SPI.transfer16(0b1101000000010000);
-  SPI.transfer16(0);
-  digitalWrite(CS_ADQ1, HIGH);
+  digitalWrite(CS_ADQ, LOW);
+  SPI.transfer16(0xC400);      // select CH1
+  uint16_t v0 = SPI.transfer16(0); // returns CH0
+  digitalWrite(CS_ADQ, HIGH);
+
+  digitalWrite(CS_ADQ, LOW);
+  SPI.transfer16(0xC000);      // re-select CH0 for next cycle
+  uint16_t v1 = SPI.transfer16(0); // returns CH1
+  digitalWrite(CS_ADQ, HIGH);
 
   SPI.endTransaction();
 
@@ -418,10 +427,8 @@ void setup() {
   z_offset = 0;
 
   // Detector pins
-  pinMode(CS_ADQ0, OUTPUT);
-  pinMode(CS_ADQ1, OUTPUT);
-  digitalWrite(CS_ADQ0, HIGH);
-  digitalWrite(CS_ADQ1, HIGH);
+  pinMode(CS_ADQ, OUTPUT);
+  digitalWrite(CS_ADQ, HIGH);
 
   pinMode(RST_PIN, OUTPUT);
   pinMode(HOLD_PIN, OUTPUT);
