@@ -80,12 +80,11 @@ static const int DET_MISO = 13;
 static const int DET_MOSI = 11;
 
 // Chip selects (set to your wiring)
-static const int CS_ADQ0 = 9;
-static const int CS_ADQ1 = 8;
+static const int CS_ADQ = 37;
 
 // Integrator control pins (set to your wiring)
-static const int RST_PIN  = 21;
-static const int HOLD_PIN = 18;
+static const int RST_PIN  = 40;
+static const int HOLD_PIN = 41;
 
 // Timing
 static volatile uint32_t integraltimemicros = 700; // default 700 us, can set to 200 us
